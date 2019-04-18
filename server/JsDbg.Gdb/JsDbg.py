@@ -27,9 +27,9 @@ class JsDbg:
         self.showStderr = False
         self.verbose = True
         # TODO: assume that jsdbg is installed in "~/.jsdbg/" or some other known location?
-        execPath = "/mnt/c/jsdbg/server/JsDbg.Gdb/bin/Release/netcoreapp2.1/linux-x64/publish/JsDbg.Gdb"
-        extensionsPath = "/mnt/c/jsdbg/extensions"
-        persistentStorePath = "/mnt/c/jsdbg/persistent"
+        execPath = "/usr/local/google/home/cbiesinger/JsDbg/server/JsDbg.Gdb/bin/Release/netcoreapp2.1/linux-x64/JsDbg.Gdb.Gdb"
+        extensionsPath = "/usr/local/google/home/cbiesinger/JsDbg/extensions"
+        persistentStorePath = "/usr/local/google/home/cbiesinger/JsDbg/persistent"
         self.proc = subprocess.Popen([execPath, extensionsPath, persistentStorePath], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         def stderrThreadProc():
