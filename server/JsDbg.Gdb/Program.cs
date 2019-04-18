@@ -15,15 +15,14 @@ namespace JsDbg.Gdb
             }
 
             string extensionsDirectory = args[0];
-            string persistentStoreDirectory = args[1];
+            //string persistentStoreDirectory = args[1];
 
             // Inversion of control: Assume that this process has been started by python, stdio talks back to python and can ask it to do things.
             GdbDebugger debugger = new GdbDebugger();
 
-            PersistentStore persistentStore = new PersistentStore(persistentStoreDirectory);
-            UserFeedback userFeedback = new UserFeedback(Path.Combine(persistentStoreDirectory, "feedback"));
+            PersistentStore persistentStore = new PersistentStore(/*persistentStoreDirectory*/);
 
-            using (WebServer webServer = new WebServer(debugger, persistentStore, userFeedback, extensionsDirectory)) {
+            using (WebServer webServer = new WebServer(debugger, persistentStore, extensionsDirectory)) {
                 webServer.LoadExtension("default");
 
                 try {

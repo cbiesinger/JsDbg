@@ -159,7 +159,7 @@ namespace JsDbg.Gdb {
             return field;
         }
          
-        public async Task<SSymbolResult> LookupGlobalSymbol(string module, string symbol) {
+        public async Task<SSymbolResult> LookupGlobalSymbol(string module, string symbol, string type) {
             string pythonResult = await this.QueryDebuggerPython(String.Format("LookupGlobalSymbol(\"{0}\",\"{1}\")", module, symbol));
             // '{%s#%d' % (self.type, self.pointer)
 
@@ -183,6 +183,13 @@ namespace JsDbg.Gdb {
             result.BaseAddress = 0; // TODO
             return result;
         }
+
+        public async Task<uint[]> GetAttachedProcesses() { return new uint[0]; }
+        public async Task<uint[]> GetCurrentProcessThreads() { return new uint[0]; }
+        public async Task<ulong> TebAddress() { return 0; }
+        public uint TargetProcess { get { return 0; } set {  } }
+        public uint TargetThread { get { return 0; } set {  } }
+        public bool IsDebuggerBusy { get { return false; } }
         
         public async Task<IEnumerable<SStackFrame>> GetCallStack(int frameCount) {
             // -stack-list-frames doesn't allow accessing the frame pointer and the stakc pointer. Have to use python
