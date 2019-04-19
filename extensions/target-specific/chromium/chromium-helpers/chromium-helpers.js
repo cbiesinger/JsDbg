@@ -60,7 +60,7 @@ var Chromium = null;
             },
             RendererProcessEquivalentModules: ["msedge_child", "blink_core", "blink_common", "blink_platform", "blink_modules", "blink_android_mojo_bindings_shared",
                 "blink_embedded_frame_sink_mojo_bindings_shared", "blink_core_mojo_bindings_shared", "blink_controller", "cc", "cc_animation", "cc_paint",
-                "cc_base", "cc_debug", "cc_mojo_embedder", "chrome_child"],
+                "cc_base", "cc_debug", "cc_mojo_embedder", "chrome_child", "", "n/a", "content"],
 
             _help_BrowserProcessEquivalentModules: {
                 description: "List of modules used in the Chromium browser process.",

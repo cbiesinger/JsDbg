@@ -145,7 +145,7 @@ def GetAllFields(module, type, includeBaseTypes):
         if field.is_base_class:
             if not includeBaseTypes:
                 continue
-            fields += field.type.fields()
+            fields.extend(field.type.fields())
         
         if not hasattr(field, 'bitpos'):
             # Field is static

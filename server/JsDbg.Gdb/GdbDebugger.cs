@@ -141,6 +141,9 @@ namespace JsDbg.Gdb {
             string pythonResult = await this.QueryDebuggerPython(String.Format("LookupField(\"{0}\",\"{1}\", \"{2}\")", module, typename, fieldName));
             // '{%d#%d#%d#%d#%s#%s}' % (self.offset, self.size, self.bitOffset, self.bitCount, self.fieldName, self.typeName)
 
+            if (pythonResult[0] != '{')
+                throw new DebuggerException(String.Format("Address {0}.{1} is not a symbol", typename, fieldName));
+
             Debug.Assert(pythonResult[0] == '{');
             int fieldEndIndex = pythonResult.IndexOf('}');
             string fieldString = pythonResult.Substring(1, fieldEndIndex-1);
@@ -303,7 +306,7 @@ namespace JsDbg.Gdb {
             // Symbol should be between the first '<' and the last '+', and the displacement is between the last '+' and the last '>'
 
             SSymbolNameAndDisplacement result = new SSymbolNameAndDisplacement();
-            result.Module = "N/A";
+            result.Module = "renderer-module";
 
             int firstLess = response.IndexOf('<')+1;
             int lastPlus = response.LastIndexOf('+');
