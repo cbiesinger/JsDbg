@@ -2,6 +2,7 @@ import gdb
 import sys
 import subprocess
 import threading
+import binascii
 
 jsdbg = None
             
@@ -115,7 +116,7 @@ class SSymbolResult:
         self.pointer = symbol.value().address.reinterpret_cast(gdb.lookup_type("unsigned long long"))
     
     def __repr__(self):
-        return '{%s#%d' % (self.type, self.pointer)
+        return '{%s#%d}' % (self.type, self.pointer)
 
 class SStackFrame:
     def __init__(self, frame):
@@ -126,14 +127,6 @@ class SStackFrame:
     def __repr__(self):
         return '{%d#%d#%d}' % (self.instructionAddress, self.stackAddress, self.frameAddress)
 
-
-class SSymbolResult:
-    def __init__(self, value):
-        self.pointer = value.address.reinterpret_cast(gdb.lookup_type("unsigned long long"))
-        self.type = value.type.name
-        
-    def __repr__(self):
-        return '{%d#%s}' % (self.pointer, self.type)
 
 class SNamedSymbol:
     def __init__(self, symbol, frame):
@@ -195,7 +188,7 @@ def LookupField(module, type, field):
         fields = [f for m in match for f in m.type.fields()]
 
 def LookupGlobalSymbol(module, symbol):
-    sym = gdb.lookup_global_symbol(symbol)
+    (sym, _) = gdb.lookup_symbol(symbol)
     return SSymbolResult(sym)
 
 def GetCallStack(numFrames):
@@ -248,7 +241,8 @@ def LookupSymbolName(pointer):
 def ReadMemoryBytes(pointer, size):
     inferior = gdb.selected_inferior()
     # Note: will throw an error if this includes unmapped/ unreadable memory
-    return inferior.read_memory(pointer, size).hex()
+    buf = inferior.read_memory(pointer, size)
+    return binascii.hexlify(bytearray(buf))
 
 def WriteMemoryBytes(pointer, hexString):
     inferior = gdb.selected_inferior()
