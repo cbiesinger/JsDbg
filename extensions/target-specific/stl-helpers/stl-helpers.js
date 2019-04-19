@@ -84,6 +84,44 @@ DbgObject.AddArrayField(
     }
 );
 
+DbgObject.AddArrayField(
+    (type) => {
+        return type.name().match(/^std::__Cr::map<(.*)>$/) != null;
+    },
+    "Pairs",
+    (type) => {
+        var dummyMap = DbgObject.create(type, 0);
+        return dummyMap.f("__tree_.__begin_node_", "__begin_node_").as(type.name() + "::__node_pointer")
+        .then((headNode) => {
+            return headNode.type.templateParameters()[0];
+        });
+    },
+    (map) => map.f("__tree_").then((tree) => {
+        return tree.f("__begin_node_", "__begin_node_").as(tree.type.name() + "::__node_pointer")
+        .then((headNode) => {
+            var resultArray = [];
+            return inOrderTraversalLibcxx(headNode.f("__parent_"), "__left_", "__right_", "__value_.__cc", headNode, tree.type.name() + "::__node_pointer", resultArray)
+            .then(() => {
+                return Promise.all(resultArray);
+            });
+        });
+    })
+);
+
+function inOrderTraversalLibcxx(rootNodeOrPromise, leftField, rightField, valueField, lastNodeOrPromise, nodeType, resultArray) {
+    return Promise.all([Promise.resolve(rootNodeOrPromise), Promise.resolve(lastNodeOrPromise)])
+    .thenAll((rootNode, lastNode) => {
+        if (!rootNode.equals(lastNode)) {
+            return inOrderTraversal(rootNode.f(leftField).as(nodeType), leftField, rightField, valueField, lastNode, resultArray)
+            .then(() => {
+                resultArray.push(rootNode.f(valueField));
+                return inOrderTraversal(rootNode.f(rightField).as(nodeType), leftField, rightField, valueField, lastNode, resultArray);
+            });
+        }
+    });
+}
+
+
 function inOrderTraversal(rootNodeOrPromise, leftField, rightField, valueField, lastNodeOrPromise, resultArray) {
     return Promise.all([Promise.resolve(rootNodeOrPromise), Promise.resolve(lastNodeOrPromise)])
     .thenAll((rootNode, lastNode) => {

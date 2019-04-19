@@ -328,7 +328,10 @@ namespace JsDbg.Gdb {
 
             if (result.Name.StartsWith("vtable for ")) {
                 result.Name = result.Name.Substring("vtable for ".Length) + "::`vftable'";
-                // TODO: If displacement = 2 pointers, assume RTTI and set displacement to 0?
+                if (result.Displacement == 16) {
+                    // Assume RTTI
+                    result.Displacement = 0;
+                }
             }
 
             return result;
