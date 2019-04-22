@@ -170,7 +170,7 @@ def GetBaseTypes(module, type):
         if not field.is_base_class:
             continue
         resultFields.append(SBaseTypeResult(module, field.type.name, field.bitpos / 8))
-        resultFields.extend(GetBaseTypes("", field.type.name))
+        resultFields.extend(GetBaseTypes(module, field.type.name))
     
     return resultFields
 
@@ -189,6 +189,9 @@ def LookupField(module, type, field):
         fields = [f for m in match for f in m.type.fields()]
 
 def LookupGlobalSymbol(module, symbol):
+    # We can't use lookup_global_symbol because that does not work for symbols
+    # with local linkage, such as those in an anonymous namespace.
+    # https://sourceware.org/bugzilla/show_bug.cgi?id=24474
     (sym, _) = gdb.lookup_symbol(symbol)
     return SSymbolResult(sym)
 
@@ -243,7 +246,9 @@ def ReadMemoryBytes(pointer, size):
     inferior = gdb.selected_inferior()
     # Note: will throw an error if this includes unmapped/ unreadable memory
     buf = inferior.read_memory(pointer, size)
-    return binascii.hexlify(bytearray(buf))
+    if (sys.version_info < (3, 0)):
+      return binascii.hexlify(bytearray(buf))
+    return buf.hex()
 
 def WriteMemoryBytes(pointer, hexString):
     inferior = gdb.selected_inferior()
