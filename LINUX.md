@@ -12,4 +12,5 @@ import JsDbg
 end
 set pagination off
 ```
-5. Run gdb with your `chrome` or `content_shell` binary, break somewhere, and load [http://localhost:50000](http://localhost:50000)!
+5. Type `jsdbg` at your gdb prompt whenever you're ready to start the JsDbg webserver
+6. Run gdb with your `chrome` or `content_shell` binary, break somewhere, and load [http://localhost:50000](http://localhost:50000)!
