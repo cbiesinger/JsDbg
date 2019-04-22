@@ -90,37 +90,46 @@ DbgObject.AddArrayField(
     },
     "Pairs",
     (type) => {
-        var dummyMap = DbgObject.create(type, 0);
-        return dummyMap.f("__tree_.__begin_node_", "__begin_node_").as(type.name() + "::__node_pointer")
-        .then((headNode) => {
-            return headNode.type.templateParameters()[0];
-        });
+        var allocator = type.templateParameters()[3];
+        var pair = new DbgObjectType(allocator, type).templateParameters()[0];
+        return new DbgObjectType(pair, type);
     },
     (map) => map.f("__tree_").then((tree) => {
-        return tree.f("__begin_node_", "__begin_node_").as(tree.type.name() + "::__node_pointer")
-        .then((headNode) => {
-            var resultArray = [];
-            return inOrderTraversalLibcxx(headNode.f("__parent_"), "__left_", "__right_", "__value_.__cc", headNode, tree.type.name() + "::__node_pointer", resultArray)
-            .then(() => {
-                return Promise.all(resultArray);
+        var fromType = map.type.templateParameters()[0];
+        var toType = map.type.templateParameters()[1];
+        var nodeTypeName = `std::__Cr::__tree_node<std::__Cr::__value_type<${fromType}, ${toType}>, void*>`;
+        var nodeType = new DbgObjectType(nodeTypeName, tree.type);
+        return tree.f("__pair3_.__value_").val().then((size) => {
+            return Promise.map(tree.f("__begin_node_").as(nodeType).list(nextRbTreeNode, null, size), (node) => {
+                return node.f("__value_.__cc");
             });
         });
     })
 );
 
-function inOrderTraversalLibcxx(rootNodeOrPromise, leftField, rightField, valueField, lastNodeOrPromise, nodeType, resultArray) {
-    return Promise.all([Promise.resolve(rootNodeOrPromise), Promise.resolve(lastNodeOrPromise)])
-    .thenAll((rootNode, lastNode) => {
-        if (!rootNode.equals(lastNode)) {
-            return inOrderTraversal(rootNode.f(leftField).as(nodeType), leftField, rightField, valueField, lastNode, resultArray)
-            .then(() => {
-                resultArray.push(rootNode.f(valueField));
-                return inOrderTraversal(rootNode.f(rightField).as(nodeType), leftField, rightField, valueField, lastNode, resultArray);
-            });
-        }
+function walkDownLeft(node) {
+    return node.f("__left_").as(node.type).then((left) => {
+        if (left.isNull() || left.equals(node))
+            return node;
+        return walkDownLeft(left.as(node.type));
     });
 }
 
+function walkUpParent(node) {
+    return Promise.all([node.f("__parent_").as(node.type), node.f("__parent_").as(node.type).f("__left_")]).thenAll((parent, parentLeft) => {
+        if (node.equals(parentLeft))
+            return parent;
+        return walkUpParent(parent);
+    });
+}
+
+function nextRbTreeNode(node) {
+    return Promise.all([node.f("__right_").as(node.type), node.f("__parent_").as(node.type)]).thenAll((right, parent) => {
+        if (!right.isNull())
+            return walkDownLeft(node);
+        return walkUpParent(node);
+    });
+}
 
 function inOrderTraversal(rootNodeOrPromise, leftField, rightField, valueField, lastNodeOrPromise, resultArray) {
     return Promise.all([Promise.resolve(rootNodeOrPromise), Promise.resolve(lastNodeOrPromise)])
@@ -144,7 +153,7 @@ DbgObject.AddArrayField(
 
 DbgObject.AddArrayField(
     (type) => {
-        return type.name().match(/^std::map<(.*)>$/) != null;
+        return type.name().match(/^std::(__Cr::)?map<(.*)>$/) != null;
     },
     "Keys",
     (type) => {
@@ -157,7 +166,7 @@ DbgObject.AddArrayField(
 
 DbgObject.AddArrayField(
     (type) => {
-        return type.name().match(/^std::map<(.*)>$/) != null;
+        return type.name().match(/^std::(__Cr::)?map<(.*)>$/) != null;
     },
     "Values",
     (type) => {
@@ -170,7 +179,7 @@ DbgObject.AddArrayField(
 
 DbgObject.AddTypeDescription(
     (type) => {
-        return type.name().match(/^std::map<(.*)>$/) != null;
+        return type.name().match(/^std::(__Cr::)?map<(.*)>$/) != null;
     },
     "Size",
     false,
