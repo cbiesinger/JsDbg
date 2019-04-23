@@ -151,7 +151,10 @@ def GetAllFields(module, type, includeBaseTypes):
             # Field is static
             continue
 
-        
+        if not field.name:
+            # Field is anonymous, we have no way to access it.
+            # TODO: Find a way to handle anonymous unions
+            continue
 
         resultFields.append(SFieldResult(field))
     
