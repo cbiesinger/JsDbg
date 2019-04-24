@@ -81,9 +81,10 @@ def DebuggerQuery(tag, command):
 
 
 class SFieldResult:
-    def __init__(self, field):
-        self.bitOffset = field.bitpos % 8 if hasattr(field, 'bitpos') else -1
-        self.offset = field.bitpos / 8 if hasattr(field, 'bitpos') else -1
+    # extra_bitoffset allows handling anonymous unions correctly
+    def __init__(self, field, extra_bitoffset=0):
+        self.bitOffset = (field.bitpos + extra_bitoffset) % 8 if hasattr(field, 'bitpos') else -1
+        self.offset = (field.bitpos + extra_bitoffset) / 8 if hasattr(field, 'bitpos') else -1
         self.bitCount = field.bitsize
         self.size = field.type.sizeof
         self.fieldName = field.name
@@ -138,6 +139,15 @@ class SNamedSymbol:
         return '{%s#%d#%s}' % (self.name, self.symbolResult.pointer, s.symbolResult.type)
 
 
+class SConstantResult:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def __repr__(self):
+        return '{%s#%d}' % (self.name, self.value)
+
+
 def GetAllFields(module, type, includeBaseTypes):
     t = gdb.lookup_type(type)
     fields = t.fields()
@@ -153,8 +163,11 @@ def GetAllFields(module, type, includeBaseTypes):
             continue
 
         if not field.name:
-            # Field is anonymous, we have no way to access it.
-            # TODO: Find a way to handle anonymous unions
+            if field.type.code != gdb.TYPE_CODE_UNION:
+                # Don't know how to handle this
+                continue
+
+            resultFields.extend([SFieldResult(f, field.bitpos) for f in field.type.fields()])
             continue
 
         resultFields.append(SFieldResult(field))
@@ -189,6 +202,15 @@ def LookupField(module, type, field):
         match = list(filter(lambda x: x.name == field, fields))
         if match:
             return SFieldResult(match[0])
+
+        # Handle anonymous unions. They are a bit tricky because we have
+        # to recurse into their fields but keep track of their offset.
+        unions = [u for u in fields if not u.name and u.type.code == gdb.TYPE_CODE_UNION]
+        for union in unions:
+            for f in union.type.fields():
+                if f.name == field:
+                    return SFieldResult(f, union.bitpos)
+
         match = filter(lambda x: x.is_base_class, fields)
         fields = [f for m in match for f in m.type.fields()]
 
@@ -230,6 +252,24 @@ def LookupTypeSize(module, typename):
         return t.reference().sizeof
     t = gdb.lookup_type(typename)
     return t.sizeof
+
+
+def LookupConstants(module, type, value):
+    type = gdb.lookup_type(type)
+    if type.code != gdb.TYPE_CODE_ENUM:
+        return None
+    values = []
+    for f in type.fields():
+        if f.enumval != value:
+            continue
+
+        # GDB will give us "EnumType::Value", but we just want to return the
+        # "Value" part.
+        name = f.name
+        name = name[name.rfind("::") + 2:]
+        values.append(SConstantResult(name, f.enumval))
+    return values
+
 
 def LookupConstant(module, typename, constantName):
     if typename:
