@@ -8,8 +8,7 @@ namespace JsDbg.Gdb {
     class GdbDebugger : IDebugger {
 
         public GdbDebugger() {
-            // TODO: Initialize from LookupTypeSize("void*")
-            IsPointer64Bit = true;
+            OutputDataReceived += HandleGdbEvent;
         }
 
 
@@ -22,6 +21,10 @@ namespace JsDbg.Gdb {
         }
 
         public async Task Run() {
+            LookupTypeSize("", "void*").ContinueWith((task) => {
+                IsPointer64Bit = task.Result == 8 ? true : false;
+            });
+
             while(true) {
                 // Pump messages from python back to any waiting handlers
                 string response = await Console.In.ReadLineAsync();
@@ -29,6 +32,31 @@ namespace JsDbg.Gdb {
                     return;
                 }
                 this.OutputDataReceived?.Invoke(this, response);
+            }
+        }
+
+        void NotifyDebuggerChange(DebuggerChangeEventArgs.DebuggerStatus status) {
+            this.DebuggerChange?.Invoke(this, new DebuggerChangeEventArgs(status));
+        }
+
+        void HandleGdbEvent(object sender, string ev) {
+            if (ev[0] != '%')
+                return;
+
+            bool oldState = debuggerBusy;
+
+            if (ev == "%cont")
+                debuggerBusy = true;
+            else if (ev == "%stop" || ev == "%exit")
+                debuggerBusy = false;
+
+            if (debuggerBusy != oldState) {
+                if (!debuggerBusy)
+                    NotifyDebuggerChange(DebuggerChangeEventArgs.DebuggerStatus.Break);
+                else if (ev == "%exit")
+                    NotifyDebuggerChange(DebuggerChangeEventArgs.DebuggerStatus.Detaching);
+                else
+                    NotifyDebuggerChange(DebuggerChangeEventArgs.DebuggerStatus.Waiting);
             }
         }
 
@@ -443,9 +471,10 @@ namespace JsDbg.Gdb {
             return response;
         }
 
-        private bool isPointer64Bit;
+        // Assume 64-bit until we get a response from the debugger
+        private bool isPointer64Bit = true;
         private uint queryTag = 1;
-        private uint varTag = 1;
+        private bool debuggerBusy = false;
 
         private delegate void PythonResponseEventHandler(object sender, string e);
         private event PythonResponseEventHandler OutputDataReceived;
