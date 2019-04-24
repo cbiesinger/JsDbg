@@ -120,7 +120,7 @@ class SBaseTypeResult:
 
 class SSymbolResult:
     def __init__(self, symbol):
-        self.type = symbol.type.name
+        self.type = symbol.type.strip_typedefs().name
         self.pointer = symbol.value().address.reinterpret_cast(gdb.lookup_type("unsigned long long"))
     
     def __repr__(self):
