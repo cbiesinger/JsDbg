@@ -119,7 +119,7 @@ namespace JsDbg.Core {
             this.debugger = debugger;
             this.debugger.DebuggerChange += (sender, e) => { this.NotifyClientsOfDebuggerChange(e.Status); };
             this.debugger.DebuggerMessage += (sender, message) => {
-                Console.Out.WriteLine(message);
+                Console.Error.WriteLine(message);
                 this.SendWebSocketMessage(String.Format("message:{0}", message));
             };
             this.persistentStore = persistentStore;

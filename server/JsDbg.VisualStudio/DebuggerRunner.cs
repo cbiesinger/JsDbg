@@ -399,7 +399,7 @@ namespace JsDbg.VisualStudio {
 
         #endregion
 
-        JsDbg.Windows.Dia.DiaDebugger debugger;
+        DiaDebugger debugger;
         DebuggerEngine engine;
         IDebugProgram2 currentDebugProgram;
         IDebugMemoryContext2 memoryContext;

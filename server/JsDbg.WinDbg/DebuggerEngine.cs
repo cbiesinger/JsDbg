@@ -143,13 +143,8 @@ namespace JsDbg.WinDbg {
             Console.Out.Write('.');
         }
 
-<<<<<<< HEAD
         public Task<JsDbg.Windows.Dia.Type> GetTypeFromDebugger(string module, string typename) {
-            return this.AttemptOperation<JsDbg.Windows.Dia.Type>(() => {
-=======
-        public Task<Core.Type> GetTypeFromDebugger(string module, string typename) {
-            return this.runner.AttemptOperation<Core.Type>(() => {
->>>>>>> master
+            return this.runner.AttemptOperation<JsDbg.Windows.Dia.Type>(() => {
                 uint typeSize = 0;
 
                 ulong moduleBase;

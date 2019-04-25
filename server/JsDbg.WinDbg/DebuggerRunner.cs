@@ -26,25 +26,16 @@ namespace JsDbg.WinDbg {
             this.control = new DebugControl(this.client);
             this.symbolCache = new SymbolCache(this.client);
             this.dataSpaces = new DebugDataSpaces(this.client);
-<<<<<<< HEAD
+            this.systemObjects = new DebugSystemObjects(this.client);
             this.diaLoader = new DiaSessionLoader(
                 new IDiaSessionSource[] { new DiaSessionPathSource(this, this.symbolCache), new DiaSessionModuleSource(this, this.symbolCache, this.dataSpaces) }
-=======
-            this.systemObjects = new DebugSystemObjects(this.client);
-            this.diaLoader = new Dia.DiaSessionLoader(
-                new Dia.IDiaSessionSource[] { new DiaSessionPathSource(this, this.symbolCache), new DiaSessionModuleSource(this, this.symbolCache, this.dataSpaces) }
->>>>>>> master
             );
             this.isShuttingDown = false;
             this.didShutdown = true;
             this.engine = new DebuggerEngine(this, this.client, this.control, this.diaLoader);
-<<<<<<< HEAD
             this.debugger = new DiaDebugger(this.engine);
-=======
-            this.debugger = new Core.TypeCacheDebugger(this.engine);
             Debug.Assert(!this.IsDebuggerBusy);
             this.TargetProcessSystemId = this.systemObjects.CurrentProcessSystemId;
->>>>>>> master
         }
 
         public void Dispose() {
@@ -234,13 +225,9 @@ namespace JsDbg.WinDbg {
         private DebuggerEngine engine;
         private DiaDebugger debugger;
         private SymbolCache symbolCache;
-<<<<<<< HEAD
         private DiaSessionLoader diaLoader;
-=======
-        private Dia.DiaSessionLoader diaLoader;
         private uint targetProcessSystemId;  // process being actively debugged
         private uint targetThreadSystemId;  // thread being actively debugged
->>>>>>> master
         private bool isShuttingDown;
         private bool didShutdown;
     }
