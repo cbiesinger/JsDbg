@@ -126,11 +126,8 @@ Loader.OnLoad(function() {
         ]
     }
     DbgObject.global = function(moduleName, symbol, typeName, namespace) {
-        var promises = [moduleBasedLookup(moduleName, JsDbgPromise.LookupGlobalSymbol, symbol, typeName)];
-        if (namespace)
-            promises.push(moduleBasedLookup(moduleName, JsDbgPromise.LookupGlobalSymbol, `${namespace}::${symbol}`, typeName));
         return new PromisedDbgObject(
-            Promise.any(promises)
+            moduleBasedLookup(moduleName, JsDbgPromise.LookupGlobalSymbol, symbol, typeName, namespace)
             .then(function(result) {
                 return DbgObject.create(DbgObjectType(result.module, result.type), result.pointer);
             })

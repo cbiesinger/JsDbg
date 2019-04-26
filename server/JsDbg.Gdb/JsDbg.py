@@ -3,9 +3,13 @@ import sys
 import subprocess
 import threading
 import binascii
+import os.path
+import re
 
 jsdbg = None
-            
+last_pid = None
+last_tid = None
+
 class JsDbg:
     class JsDbgGdbRequest:
         def __init__(self, request, responseStream, verbose):
@@ -28,10 +32,10 @@ class JsDbg:
         self.showStderr = False
         self.verbose = True
         # TODO: assume that jsdbg is installed in "~/.jsdbg/" or some other known location?
-        execPath = "/usr/local/google/home/cbiesinger/JsDbg/server/JsDbg.Gdb/bin/Release/netcoreapp2.1/linux-x64/JsDbg.Gdb.Gdb"
-        extensionsPath = "/usr/local/google/home/cbiesinger/JsDbg/extensions"
-        persistentStorePath = "/usr/local/google/home/cbiesinger/JsDbg/persistent"
-        self.proc = subprocess.Popen([execPath, extensionsPath, persistentStorePath], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        homeDir = os.path.expanduser("~")
+        execPath = homeDir + "/JsDbg/server/JsDbg.Gdb/bin/Release/netcoreapp2.1/linux-x64/publish/JsDbg.Gdb"
+        extensionsPath = homeDir + "/JsDbg/extensions"
+        self.proc = subprocess.Popen([execPath, extensionsPath], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         def stderrThreadProc():
             # Echo stderr from the subprocess, if showStderr is set
@@ -74,6 +78,7 @@ class JsDbg:
             print("JsDbg [sending event]: " + response)
         self.proc.stdin.write(response.encode("utf-8"))
         self.proc.stdin.flush()
+
 
 def DebuggerQuery(tag, command):
     # pi exec('print(\\'{0}~\\' + str({1}))')
@@ -158,7 +163,7 @@ class SModule:
     def __init__(self, name, baseAddress):
         self.name = name
         self.baseAddress = baseAddress
-    
+
     def __repr__(self):
         return '{%s#%d}' % (self.name, self.baseAddress)
 
@@ -234,6 +239,8 @@ def LookupGlobalSymbol(module, symbol):
     # with local linkage, such as those in an anonymous namespace.
     # https://sourceware.org/bugzilla/show_bug.cgi?id=24474
     (sym, _) = gdb.lookup_symbol(symbol)
+    if sym is None:
+        return None
     return SSymbolResult(sym)
 
 
@@ -246,6 +253,7 @@ def GetModuleForName(module):
     objfile = gdb.lookup_objfile('lib' + module + '.so')
   if objfile:
     # Python has no API to find the base address
+    # https://sourceware.org/bugzilla/show_bug.cgi?id=24481
     return SModule(module, 0)
   return None
 
@@ -323,8 +331,11 @@ def LookupSymbolName(pointer):
     module = gdb.solib_name(pointer)
     if not module:
         # If it exists, it's in the main binary
-        filename = gdb.current_progspace().filename
-        module = filename[filename.rfind("/") + 1:]
+        module = gdb.current_progspace().filename
+    # First, we strip out the path to the module
+    module = module[module.rfind("/") + 1:]
+    # Then, we remove the lib prefix and .so / .so.1.2 suffix, if present.
+    module = re.match("^(lib)?(.*?)(.so)?[.0-9]*$", module).groups()[1]
     val = gdb.parse_and_eval("(void*)%d" % pointer)
     return "%s!%s" % (module, str(val))
 
@@ -341,11 +352,57 @@ def WriteMemoryBytes(pointer, hexString):
     byteString = bytes.fromhex(hexString)
     inferior.write_memory(pointer, byteString)
 
+def GetAttachedProcesses():
+    return [inferior.pid for inferior in gdb.inferiors()]
+
+def GetCurrentProcessThreads():
+    return [thread.ptid[2] or thread.ptid[1] for thread in gdb.selected_inferior().threads()]
+
+def GetTargetProcess():
+    return gdb.selected_inferior().pid
+
+def GetTargetThread():
+    thread = gdb.selected_thread()
+    return thread.ptid[2] or thread.ptid[1]
+
+def SetTargetProcess(pid):
+    match = [i for i in gdb.inferiors() if i.pid == pid]
+    if not match:
+        raise ValueError('No such process %i' % (pid))
+    # Last thread seems to be the main thread, switch to that
+    threads = match[0].threads()[-1].switch()
+
+def SetTargetThread(tid):
+    match = [t for t in gdb.selected_inferior().threads() if t.ptid[2] == tid or t.ptid[1] == tid]
+    if not match:
+        raise ValueError('No such thread %i' % (pid))
+    match[0].switch()
+
 def EnsureJsDbg():
     global jsdbg
     if not jsdbg:
         jsdbg = JsDbg()
     return jsdbg
+
+def CheckForProcessAndThreadChange():
+    global last_tid
+    global last_pid
+    global jsdbg
+    try:
+        current_process = GetTargetProcess()
+    except:
+        current_process = None
+    try:
+        current_thread = GetTargetThread()
+    except:
+        current_thread = None
+
+    if last_pid != current_process and jsdbg:
+        jsdbg.SendGdbEvent('proc %i' % (current_process))
+    if last_tid != current_thread and jsdbg:
+        jsdbg.SendGdbEvent('thread %i' % (current_thread))
+    last_pid = current_process
+    last_tid = current_thread
 
 def StoppedHandler(ev):
     global jsdbg
@@ -354,6 +411,10 @@ def StoppedHandler(ev):
 
 def ContHandler(ev):
     global jsdbg
+    global last_tid
+    # This may be the initial "run"; send a notification if so
+    if not last_tid:
+        CheckForProcessAndThreadChange()
     if jsdbg:
         jsdbg.SendGdbEvent('cont')
 
@@ -362,9 +423,13 @@ def ExitHandler(ev):
     if jsdbg:
         jsdbg.SendGdbEvent('exit')
 
+def PromptHandler():
+    CheckForProcessAndThreadChange()
+
 gdb.events.stop.connect(StoppedHandler)
 gdb.events.cont.connect(ContHandler)
 gdb.events.exited.connect(ExitHandler)
+gdb.events.before_prompt.connect(PromptHandler)
 
 class JsDbgCmd(gdb.Command):
   """Runs JsDbg."""
