@@ -320,8 +320,13 @@ def LookupConstant(module, typename, constantName):
     return str(integral_val)
 
 def LookupSymbolName(pointer):
+    module = gdb.solib_name(pointer)
+    if not module:
+        # If it exists, it's in the main binary
+        filename = gdb.current_progspace().filename
+        module = filename[filename.rfind("/") + 1:]
     val = gdb.parse_and_eval("(void*)%d" % pointer)
-    return str(val)
+    return "%s!%s" % (module, str(val))
 
 def ReadMemoryBytes(pointer, size):
     inferior = gdb.selected_inferior()
