@@ -5,8 +5,13 @@ PUBLISH=bin/Release/netcoreapp2.1/linux-x64/publish
 
 BINDEPS=$(filter-out %extensions %JsDbg.py %JsDbg.Gdb, $(wildcard $(PUBLISH)/*))
 
-all:
-	$(DOTNET) publish -c Release -r linux-x64 --self-contained
+all: bin/JsDbg.Gdb.dll
+
+CSFLAGS=-debug
+
+mono: ../JsDbg.Core/*.cs *.cs
+	mkdir -p bin
+	mcs $(CSFLAGS) -reference:System.Runtime.Serialization -reference:System.Web -out:bin/JsDbg.gdb.dll $^
 
 clean:
 	rm -rf bin obj ../JsDbg.Core/bin ../JsDbg.Core/obj jsdbg.tar.bz2
